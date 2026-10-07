@@ -22,6 +22,8 @@ export default function App() {
   // Carrega a fila ao abrir a tela e mantém atualizada sozinha, para a
   // recepção ver novos check-ins (feitos em outro totem) sem recarregar.
   useEffect(() => {
+    // Busca da fila (não deriva de prop/state), por isso o setState aqui é intencional.
+    // oxlint-disable-next-line react/set-state-in-effect
     void atualizarFila();
     const intervalo = setInterval(atualizarFila, INTERVALO_ATUALIZACAO_MS);
     return () => clearInterval(intervalo);
