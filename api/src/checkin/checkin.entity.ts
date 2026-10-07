@@ -3,4 +3,5 @@ export interface Checkin {
   cpf: string;
   nome: string;
   chegadaEm: string;
+  atendidoEm: string | null;
 }

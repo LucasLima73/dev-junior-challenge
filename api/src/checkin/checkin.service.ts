@@ -1,45 +1,62 @@
-import { randomUUID } from 'node:crypto';
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { CadastroService } from '../cadastro/cadastro.service.js';
 import type { Checkin } from './checkin.entity.js';
+import {
+  CHECKIN_REPOSITORY,
+  type CheckinRepository,
+  type ListarEntreOpcoes,
+  type ResultadoPaginado,
+} from './checkin.repository.js';
 
-function mesmoDia(a: Date, b: Date): boolean {
-  return a.toDateString() === b.toDateString();
+function inicioDoDia(data: Date): Date {
+  const inicio = new Date(data);
+  inicio.setHours(0, 0, 0, 0);
+  return inicio;
+}
+
+function fimDoDia(data: Date): Date {
+  const fim = new Date(data);
+  fim.setHours(23, 59, 59, 999);
+  return fim;
 }
 
 @Injectable()
 export class CheckinService {
-  // Persistência em memória: a fila é perdida se a API reiniciar (ver ENTREGA.md).
-  private readonly fila: Checkin[] = [];
-
-  constructor(private readonly cadastro: CadastroService) {}
+  constructor(
+    private readonly cadastro: CadastroService,
+    @Inject(CHECKIN_REPOSITORY) private readonly repositorio: CheckinRepository,
+  ) {}
 
   async criar(cpf: string): Promise<Checkin> {
     const agora = new Date();
 
-    const jaFezCheckinHoje = this.fila.some(
-      (checkin) => checkin.cpf === cpf && mesmoDia(new Date(checkin.chegadaEm), agora),
+    // A trava de duplicidade olha só os pendentes: se o paciente já foi
+    // atendido hoje e precisar voltar, pode fazer check-in de novo.
+    const { itens: pendentesHoje } = await this.repositorio.listarEntre(
+      inicioDoDia(agora),
+      fimDoDia(agora),
+      { status: 'pendentes' },
     );
-    if (jaFezCheckinHoje) {
+    if (pendentesHoje.some((checkin) => checkin.cpf === cpf)) {
       throw new ConflictException('Paciente já fez check-in hoje');
     }
 
     // Se o CPF não existir no cadastro, buscarPorCpf lança e nada é registrado.
     const paciente = await this.cadastro.buscarPorCpf(cpf);
 
-    const checkin: Checkin = {
-      id: randomUUID(),
-      cpf: paciente.cpf,
-      nome: paciente.nome,
-      chegadaEm: agora.toISOString(),
-    };
-    this.fila.push(checkin);
-    return checkin;
+    return this.repositorio.criar({ cpf: paciente.cpf, nome: paciente.nome, chegadaEm: agora });
   }
 
-  // Fila do dia, em ordem de chegada; zera sozinha quando o dia vira.
-  listar(): Checkin[] {
+  listar(opcoes?: ListarEntreOpcoes): Promise<ResultadoPaginado> {
     const agora = new Date();
-    return this.fila.filter((checkin) => mesmoDia(new Date(checkin.chegadaEm), agora));
+    return this.repositorio.listarEntre(inicioDoDia(agora), fimDoDia(agora), opcoes);
+  }
+
+  async atender(id: string): Promise<Checkin> {
+    const checkin = await this.repositorio.marcarComoAtendido(id, new Date());
+    if (!checkin) {
+      throw new NotFoundException('Check-in não encontrado ou já atendido');
+    }
+    return checkin;
   }
 }
