@@ -21,7 +21,11 @@ jobs:
           cache: npm
           cache-dependency-path: api/package-lock.json
 
-      - run: npm ci
+      # "npm ci" é estrito demais com um peer dependency que o
+      # vite-tsconfig-paths (usado só no vitest.config.ts) ainda não
+      # suporta no TypeScript 6; "npm install" tolera isso, igual ao
+      # ambiente local.
+      - run: npm install
       - run: npm run lint
       - run: npm run build
       - run: npm test
@@ -42,6 +46,6 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
 
-      - run: npm ci
+      - run: npm install
       - run: npm run lint
       - run: npm run build
