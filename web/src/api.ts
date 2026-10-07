@@ -1,4 +1,4 @@
-import type { Checkin } from './types';
+import type { Checkin, FilaPaginada, StatusFiltro } from './types';
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 
@@ -28,7 +28,23 @@ export async function criarCheckin(cpf: string): Promise<Checkin> {
   return tratarResposta<Checkin>(resposta);
 }
 
-export async function listarFila(): Promise<Checkin[]> {
-  const resposta = await fetch(`${BASE_URL}/checkins`);
-  return tratarResposta<Checkin[]>(resposta);
+export interface ListarFilaOpcoes {
+  status: StatusFiltro;
+  pagina: number;
+  tamanhoPagina: number;
+}
+
+export async function listarFila(opcoes: ListarFilaOpcoes): Promise<FilaPaginada> {
+  const params = new URLSearchParams({
+    status: opcoes.status,
+    pagina: String(opcoes.pagina),
+    tamanhoPagina: String(opcoes.tamanhoPagina),
+  });
+  const resposta = await fetch(`${BASE_URL}/checkins?${params.toString()}`);
+  return tratarResposta<FilaPaginada>(resposta);
+}
+
+export async function atenderCheckin(id: string): Promise<Checkin> {
+  const resposta = await fetch(`${BASE_URL}/checkins/${id}/atendido`, { method: 'PATCH' });
+  return tratarResposta<Checkin>(resposta);
 }
