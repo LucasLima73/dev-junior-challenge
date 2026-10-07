@@ -32,7 +32,7 @@ jobs:
       - run: npm run test:e2e
 
   web:
-    name: Web (lint, type-check, build)
+    name: Web (lint, testes, build)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -48,4 +48,5 @@ jobs:
 
       - run: npm install
       - run: npm run lint
+      - run: npm test
       - run: npm run build
